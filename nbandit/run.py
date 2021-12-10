@@ -58,11 +58,58 @@ class EpsilonGreedySampleAveragesAgent:
         return reward, action
 
 
+class SoftmaxAgent:
+    def __init__(self, levers, temperature: float = 1):
+        self.sample_averages = {
+            int(i): {"count": 0, "rewards": 0, "expected_value": 0}
+            for i in range(levers)
+        }
+        self.steps_taken = 0
+        self.temperature = temperature
+
+    def step(self, bandit):
+        action = None
+        # Use softmax action selection
+
+        # Get probabilities of each action
+        divisor = np.sum(
+            np.exp(
+                np.array(
+                    list(
+                        map(
+                            lambda average: average["expected_value"]
+                            / self.temperature,
+                            self.sample_averages.values(),
+                        )
+                    )
+                )
+            )
+        )
+        probabilities = [
+            np.exp(average["expected_value"] / self.temperature) / divisor
+            for average in self.sample_averages.values()
+        ]
+
+        action = np.random.choice(list(self.sample_averages.keys()), p=probabilities)
+
+        # Pull the lever and get the reward
+        reward = bandit[action][1]()
+
+        # Update the sample averages state
+        self.sample_averages[action]["count"] += 1
+        self.sample_averages[action]["rewards"] += reward
+        self.sample_averages[action]["expected_value"] = (
+            self.sample_averages[action]["rewards"]
+            / self.sample_averages[action]["count"]
+        )
+
+        return reward, action
+
 
 def main():
     n = 10
     bandit = generate_bandit(n)
-    agent = EpsilonGreedySampleAveragesAgent(n, 0.01)
+    agent = SoftmaxAgent(n)
     for _ in range(2000):
         agent.step(bandit=bandit)
     print(agent.sample_averages)
