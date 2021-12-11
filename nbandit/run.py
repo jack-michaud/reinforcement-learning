@@ -23,8 +23,7 @@ class EpsilonGreedySampleAveragesAgent:
     def __init__(self, levers, epsilon: float):
         self.epsilon = epsilon
         self.sample_averages = {
-            int(i): {"count": 0, "rewards": 0, "expected_value": 0}
-            for i in range(levers)
+            int(i): {"count": 0, "expected_value": 0} for i in range(levers)
         }
         self.steps_taken = 0
 
@@ -47,13 +46,13 @@ class EpsilonGreedySampleAveragesAgent:
         # Pull the lever and get the reward
         reward = bandit[action][1]()
 
-        # Update the sample averages state
+        # Update the sample averages state using the update rule
         self.sample_averages[action]["count"] += 1
-        self.sample_averages[action]["rewards"] += reward
-        self.sample_averages[action]["expected_value"] = (
-            self.sample_averages[action]["rewards"]
-            / self.sample_averages[action]["count"]
-        )
+        current_expected_value = self.sample_averages[action]["expected_value"]
+        step_size = 1 / self.sample_averages[action]["count"]
+        self.sample_averages[action][
+            "expected_value"
+        ] = current_expected_value + step_size * (reward - current_expected_value)
 
         return reward, action
 
@@ -61,8 +60,7 @@ class EpsilonGreedySampleAveragesAgent:
 class SoftmaxAgent:
     def __init__(self, levers, temperature: float = 1):
         self.sample_averages = {
-            int(i): {"count": 0, "rewards": 0, "expected_value": 0}
-            for i in range(levers)
+            int(i): {"count": 0, "expected_value": 0} for i in range(levers)
         }
         self.steps_taken = 0
         self.temperature = temperature
@@ -95,13 +93,13 @@ class SoftmaxAgent:
         # Pull the lever and get the reward
         reward = bandit[action][1]()
 
-        # Update the sample averages state
+        # Update the sample averages state using the update rule
         self.sample_averages[action]["count"] += 1
-        self.sample_averages[action]["rewards"] += reward
-        self.sample_averages[action]["expected_value"] = (
-            self.sample_averages[action]["rewards"]
-            / self.sample_averages[action]["count"]
-        )
+        current_expected_value = self.sample_averages[action]["expected_value"]
+        step_size = 1 / self.sample_averages[action]["count"]
+        self.sample_averages[action][
+            "expected_value"
+        ] = current_expected_value + step_size * (reward - current_expected_value)
 
         return reward, action
 
