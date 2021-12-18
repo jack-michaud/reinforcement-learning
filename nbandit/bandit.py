@@ -28,24 +28,21 @@ def generate_nonstationary_lever():
     The center of the reward for this lever is initially a constant (5) but will take random walks and change value.
     The center of the reward will only ever be between [0,9].
     """
-    global action_value
-    action_value = 5
-    step_size = 0.5
+    action_value = {"value": 0}
+    step_size = 2
 
     def return_reward():
-        global action_value
-        action_value = np.random.choice(
+        action_value["value"] = np.random.choice(
             [
-                min(9, action_value + step_size),
-                max(0, action_value - step_size),
-                action_value,
-            ]
+                min(9, action_value["value"] + step_size),
+                max(0, action_value["value"] - step_size),
+                action_value["value"],
+            ],
         )
-        return np.random.normal(action_value, 1)
+        return max(0, min(10, np.random.normal(action_value["value"], 1)))
 
     def get_action_value():
-        global action_value
-        return action_value + 1
+        return action_value["value"] + 1
 
     return get_action_value, return_reward
 
