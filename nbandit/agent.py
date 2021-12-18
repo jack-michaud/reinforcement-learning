@@ -84,3 +84,37 @@ class SoftmaxAgent:
         ] = current_expected_value + step_size * (reward - current_expected_value)
 
         return reward, action
+
+
+class EpsilonGreedyConstantStepSize:
+    def __init__(self, levers, epsilon: float, alpha: float):
+        self.epsilon = epsilon
+        self.alpha = alpha
+        self.sample_averages = {int(i): {"expected_value": 0} for i in range(levers)}
+
+    def step(self, bandit):
+        action = None
+        if np.random.rand() < self.epsilon:
+            # Choose a random action
+            action = np.random.choice(list(self.sample_averages.keys()))
+        else:
+            # Choose the greedy action
+            greedy_action = None
+            greedy_action_value = -1
+            for action, action_state in self.sample_averages.items():
+                if action_state["expected_value"] > greedy_action_value:
+                    greedy_action_value = action_state["expected_value"]
+                    greedy_action = action
+
+            action = greedy_action
+
+        reward = bandit[action][1]()
+
+        # Update the sample averages state using the update rule with a constant step size
+        current_expected_value = self.sample_averages[action]["expected_value"]
+        step_size = self.alpha
+        self.sample_averages[action][
+            "expected_value"
+        ] = current_expected_value + step_size * (reward - current_expected_value)
+
+        return reward, action
