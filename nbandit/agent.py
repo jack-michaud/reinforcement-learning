@@ -150,3 +150,64 @@ class EpsilonGreedyConstantStepSize(Agent):
             "expected_value"
         ] = current_expected_value + step_size * (reward - current_expected_value)
 
+
+class ReinforcementComparisonAgent(Agent):
+    """
+    A reinforcement comparison method agent. This agent
+    keeps track of an average reference reward and updates
+    action preferences based on this average.
+    """
+
+    def __init__(
+        self,
+        lever_count: int,
+        alpha: float = 0.9,
+        beta: float = 0.9,
+        initial_preferences_value: float = 0,
+        initial_reference_reward: float = 0,
+        balance_initial_action_selection: bool = False,
+    ):
+        """
+        Args:
+            initial_preferences_value: should encourage exploration
+            balance_initial_action_selection: add a factor of (1 - \pi(a)) to the action preference update to prevent early rewards' actions from overpowering other actions. In practice, this doesn't improve things.
+        """
+        self.lever_count = lever_count
+        self.alpha = alpha
+        self.beta = beta
+        self.balance_initial_action_selection = balance_initial_action_selection
+        self.action_preferences = {
+            int(idx): initial_preferences_value for idx in range(lever_count)
+        }
+        self.reference_reward = initial_reference_reward
+
+    def choose_action(self) -> int:
+        """
+        Use softmax selection of action preferences.
+        """
+        probabilities = self.get_probability_of_actions()
+
+        return np.random.choice(list(range(self.lever_count)), p=probabilities)
+
+    def get_probability_of_actions(self) -> List[float]:
+        action_preferences = np.array(list(self.action_preferences.values()))
+        probabilities = np.exp(action_preferences) / np.sum(np.exp(action_preferences))
+        return probabilities
+
+    def update_state(self, reward: float, action: int):
+        # update action preferences
+        if self.balance_initial_action_selection:
+            self.action_preferences[action] = self.action_preferences[action] + (
+                self.beta
+                * (reward - self.reference_reward)
+                * self.get_probability_of_actions()[action]
+            )
+        else:
+            self.action_preferences[action] = self.action_preferences[action] + (
+                self.beta * (reward - self.reference_reward)
+            )
+
+        # update reference reward
+        self.reference_reward = self.reference_reward + (
+            self.alpha * (reward - self.reference_reward)
+        )
