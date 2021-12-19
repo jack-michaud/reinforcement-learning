@@ -30,7 +30,7 @@ class EpsilonGreedySampleAveragesAgent(Agent):
 
     def __init__(self, levers, epsilon: float, initial_action_value: float = 0):
         self.epsilon = epsilon
-        self.sample_averages = {
+        self.action_values = {
             int(i): {"count": 0, "expected_value": initial_action_value}
             for i in range(levers)
         }
@@ -39,26 +39,28 @@ class EpsilonGreedySampleAveragesAgent(Agent):
         action = None
         if np.random.rand() < self.epsilon:
             # Choose a random action
-            action = np.random.choice(list(self.sample_averages.keys()))
+            action = np.random.choice(list(self.action_values.keys()))
         else:
             # Choose the greedy action
-            greedy_action = None
+            greedy_actions = []
             greedy_action_value = -1
-            for action, action_state in self.sample_averages.items():
+            for action, action_state in self.action_values.items():
                 if action_state["expected_value"] > greedy_action_value:
                     greedy_action_value = action_state["expected_value"]
-                    greedy_action = action
+                    greedy_actions.append(action)
+                if action_state["expected_value"] == greedy_action_value:
+                    greedy_actions.append(action)
 
-            action = greedy_action
+            action = np.random.choice(greedy_actions)
 
         return action
 
     def update_state(self, reward, action):
         # Update the sample averages state using the update rule
-        self.sample_averages[action]["count"] += 1
-        current_expected_value = self.sample_averages[action]["expected_value"]
-        step_size = 1 / self.sample_averages[action]["count"]
-        self.sample_averages[action][
+        self.action_values[action]["count"] += 1
+        current_expected_value = self.action_values[action]["expected_value"]
+        step_size = 1 / self.action_values[action]["count"]
+        self.action_values[action][
             "expected_value"
         ] = current_expected_value + step_size * (reward - current_expected_value)
 
@@ -69,7 +71,7 @@ class SoftmaxAgent(Agent):
     """
 
     def __init__(self, levers, temperature: float = 1):
-        self.sample_averages = {
+        self.action_values = {
             int(i): {"count": 0, "expected_value": 0} for i in range(levers)
         }
         self.temperature = temperature
@@ -86,7 +88,7 @@ class SoftmaxAgent(Agent):
                         map(
                             lambda average: average["expected_value"]
                             / self.temperature,
-                            self.sample_averages.values(),
+                            self.action_values.values(),
                         )
                     )
                 )
@@ -94,18 +96,18 @@ class SoftmaxAgent(Agent):
         )
         probabilities = [
             np.exp(average["expected_value"] / self.temperature) / divisor
-            for average in self.sample_averages.values()
+            for average in self.action_values.values()
         ]
 
-        action = np.random.choice(list(self.sample_averages.keys()), p=probabilities)
+        action = np.random.choice(list(self.action_values.keys()), p=probabilities)
         return action
 
     def update_state(self, reward, action):
         # Update the sample averages state using the update rule
-        self.sample_averages[action]["count"] += 1
-        current_expected_value = self.sample_averages[action]["expected_value"]
-        step_size = 1 / self.sample_averages[action]["count"]
-        self.sample_averages[action][
+        self.action_values[action]["count"] += 1
+        current_expected_value = self.action_values[action]["expected_value"]
+        step_size = 1 / self.action_values[action]["count"]
+        self.action_values[action][
             "expected_value"
         ] = current_expected_value + step_size * (reward - current_expected_value)
 
@@ -131,12 +133,16 @@ class EpsilonGreedyConstantStepSize(Agent):
             action = np.random.choice(list(self.sample_averages.keys()))
         else:
             # Choose the greedy action
-            greedy_action = None
+            greedy_actions = []
             greedy_action_value = -1
-            for action, action_state in self.sample_averages.items():
+            for action, action_state in self.action_values.items():
                 if action_state["expected_value"] > greedy_action_value:
                     greedy_action_value = action_state["expected_value"]
-                    greedy_action = action
+                    greedy_actions.append(action)
+                if action_state["expected_value"] == greedy_action_value:
+                    greedy_actions.append(action)
+
+            action = np.random.choice(greedy_actions)
 
             action = greedy_action
 
