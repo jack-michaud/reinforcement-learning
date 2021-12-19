@@ -1,15 +1,41 @@
+from abc import abstractmethod
+from typing import Callable, List, Tuple
 import numpy as np
 
 
-class EpsilonGreedySampleAveragesAgent:
-    def __init__(self, levers, epsilon: float):
+class Agent:
+    @abstractmethod
+    def choose_action(self) -> int:
+        pass
+
+    @abstractmethod
+    def update_state(self, reward: float, action: int):
+        pass
+
+    def step(self, bandit: List[Tuple[Callable[[], int], Callable[[], int]]]):
+        action = self.choose_action()
+
+        # Pull the lever and get the reward
+        reward = bandit[action][1]()
+
+        self.update_state(reward, action)
+
+        return reward, action
+
+
+class EpsilonGreedySampleAveragesAgent(Agent):
+    """
+    An action value agent that uses the sample averages method of action value estimation with epsilon greedy action selection.
+    """
+
+    def __init__(self, levers, epsilon: float, initial_action_value: float = 0):
         self.epsilon = epsilon
         self.sample_averages = {
-            int(i): {"count": 0, "expected_value": 0} for i in range(levers)
+            int(i): {"count": 0, "expected_value": initial_action_value}
+            for i in range(levers)
         }
-        self.steps_taken = 0
 
-    def step(self, bandit):
+    def choose_action(self):
         action = None
         if np.random.rand() < self.epsilon:
             # Choose a random action
@@ -25,9 +51,9 @@ class EpsilonGreedySampleAveragesAgent:
 
             action = greedy_action
 
-        # Pull the lever and get the reward
-        reward = bandit[action][1]()
+        return action
 
+    def update_state(self, reward, action):
         # Update the sample averages state using the update rule
         self.sample_averages[action]["count"] += 1
         current_expected_value = self.sample_averages[action]["expected_value"]
@@ -36,18 +62,19 @@ class EpsilonGreedySampleAveragesAgent:
             "expected_value"
         ] = current_expected_value + step_size * (reward - current_expected_value)
 
-        return reward, action
 
+class SoftmaxAgent(Agent):
+    """
+    An action value agent using sample averages with softmax action selection.
+    """
 
-class SoftmaxAgent:
     def __init__(self, levers, temperature: float = 1):
         self.sample_averages = {
             int(i): {"count": 0, "expected_value": 0} for i in range(levers)
         }
-        self.steps_taken = 0
         self.temperature = temperature
 
-    def step(self, bandit):
+    def choose_action(self):
         action = None
         # Use softmax action selection
 
@@ -71,10 +98,9 @@ class SoftmaxAgent:
         ]
 
         action = np.random.choice(list(self.sample_averages.keys()), p=probabilities)
+        return action
 
-        # Pull the lever and get the reward
-        reward = bandit[action][1]()
-
+    def update_state(self, reward, action):
         # Update the sample averages state using the update rule
         self.sample_averages[action]["count"] += 1
         current_expected_value = self.sample_averages[action]["expected_value"]
@@ -83,16 +109,22 @@ class SoftmaxAgent:
             "expected_value"
         ] = current_expected_value + step_size * (reward - current_expected_value)
 
-        return reward, action
 
+class EpsilonGreedyConstantStepSize(Agent):
+    """
+    An action value method agent that uses a constant step size (rather than the sample averages' 1/k step size), suitable for nonstationary problems.
+    """
 
-class EpsilonGreedyConstantStepSize:
-    def __init__(self, levers, epsilon: float, alpha: float):
+    def __init__(
+        self, levers, epsilon: float, alpha: float, initial_action_value: float = 0
+    ):
         self.epsilon = epsilon
         self.alpha = alpha
-        self.sample_averages = {int(i): {"expected_value": 0} for i in range(levers)}
+        self.sample_averages = {
+            int(i): {"expected_value": initial_action_value} for i in range(levers)
+        }
 
-    def step(self, bandit):
+    def choose_action(self):
         action = None
         if np.random.rand() < self.epsilon:
             # Choose a random action
@@ -108,8 +140,9 @@ class EpsilonGreedyConstantStepSize:
 
             action = greedy_action
 
-        reward = bandit[action][1]()
+        return action
 
+    def update_state(self, reward, action):
         # Update the sample averages state using the update rule with a constant step size
         current_expected_value = self.sample_averages[action]["expected_value"]
         step_size = self.alpha
@@ -117,4 +150,3 @@ class EpsilonGreedyConstantStepSize:
             "expected_value"
         ] = current_expected_value + step_size * (reward - current_expected_value)
 
-        return reward, action
