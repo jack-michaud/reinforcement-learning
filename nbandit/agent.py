@@ -1,6 +1,19 @@
 from abc import abstractmethod
-from typing import Callable, List, Tuple
+from typing import Any, Callable, Dict, List, Tuple
 import numpy as np
+
+
+def get_greedy_action(action_values: Dict[int, Any]) -> int:
+    greedy_actions = []
+    greedy_action_value = -1
+    for action, action_state in action_values.items():
+        if action_state["expected_value"] > greedy_action_value:
+            greedy_action_value = action_state["expected_value"]
+            greedy_actions = [action]
+        elif action_state["expected_value"] == greedy_action_value:
+            greedy_actions.append(action)
+
+    return np.random.choice(greedy_actions)
 
 
 class Agent:
@@ -42,16 +55,7 @@ class EpsilonGreedySampleAveragesAgent(Agent):
             action = np.random.choice(list(self.action_values.keys()))
         else:
             # Choose the greedy action
-            greedy_actions = []
-            greedy_action_value = -1
-            for action, action_state in self.action_values.items():
-                if action_state["expected_value"] > greedy_action_value:
-                    greedy_action_value = action_state["expected_value"]
-                    greedy_actions = [action]
-                if action_state["expected_value"] == greedy_action_value:
-                    greedy_actions.append(action)
-
-            action = np.random.choice(greedy_actions)
+            action = get_greedy_action(self.action_values)
 
         return action
 
@@ -122,7 +126,7 @@ class EpsilonGreedyConstantStepSize(Agent):
     ):
         self.epsilon = epsilon
         self.alpha = alpha
-        self.sample_averages = {
+        self.action_values = {
             int(i): {"expected_value": initial_action_value} for i in range(levers)
         }
 
@@ -130,29 +134,18 @@ class EpsilonGreedyConstantStepSize(Agent):
         action = None
         if np.random.rand() < self.epsilon:
             # Choose a random action
-            action = np.random.choice(list(self.sample_averages.keys()))
+            action = np.random.choice(list(self.action_values.keys()))
         else:
             # Choose the greedy action
-            greedy_actions = []
-            greedy_action_value = -1
-            for action, action_state in self.action_values.items():
-                if action_state["expected_value"] > greedy_action_value:
-                    greedy_action_value = action_state["expected_value"]
-                    greedy_actions = [action]
-                if action_state["expected_value"] == greedy_action_value:
-                    greedy_actions.append(action)
-
-            action = np.random.choice(greedy_actions)
-
-            action = greedy_action
+            action = get_greedy_action(self.action_values)
 
         return action
 
     def update_state(self, reward, action):
         # Update the sample averages state using the update rule with a constant step size
-        current_expected_value = self.sample_averages[action]["expected_value"]
+        current_expected_value = self.action_values[action]["expected_value"]
         step_size = self.alpha
-        self.sample_averages[action][
+        self.action_values[action][
             "expected_value"
         ] = current_expected_value + step_size * (reward - current_expected_value)
 
@@ -217,3 +210,58 @@ class ReinforcementComparisonAgent(Agent):
         self.reference_reward = self.reference_reward + (
             self.alpha * (reward - self.reference_reward)
         )
+
+
+class PursuitAgent(Agent):
+    def __init__(self, lever_count: int, beta: float = 0.1) -> None:
+        self.lever_count = lever_count
+        self.beta = beta
+        self.action_preferences = {idx: 1 / lever_count for idx in range(lever_count)}
+        self.action_values = {
+            idx: {"count": 0, "expected_value": 0} for idx in range(lever_count)
+        }
+
+    @abstractmethod
+    def get_probability_of_actions(self) -> np.ndarray:
+        pass
+
+    def choose_action(self) -> int:
+        action_probabilities = self.get_probability_of_actions()
+        return np.random.choice(list(range(self.lever_count)), p=action_probabilities)
+
+    def update_state(self, reward: float, action: int):
+        # Update action value estimate with sample averages
+        self.action_values[action]["count"] += 1
+        self.action_values[action]["expected_value"] += (
+            reward - self.action_values[action]["expected_value"]
+        ) / self.action_values[action]["count"]
+
+        # Update the action preferences
+        optimal_action = get_greedy_action(self.action_values)
+        for idx in range(self.lever_count):
+            # If this is the optimal action, weight it closer to 1 by a factor of beta
+            # If this is not the optimal action, weight it closer to 0 by a factor of beta
+            if idx == optimal_action:
+                self.action_preferences[idx] += self.beta * (
+                    1 - self.action_preferences[idx]
+                )
+            else:
+                self.action_preferences[idx] -= self.beta * self.action_preferences[idx]
+                self.action_preferences[idx] = max(self.action_preferences[idx], 0)
+
+
+class PursuitAgentSimplePolicy(PursuitAgent):
+    def get_probability_of_actions(self) -> np.ndarray:
+        action_preferences = np.array(
+            [value for value in self.action_preferences.values()]
+        )
+        return action_preferences
+
+
+class SoftmaxPursuitAgent(PursuitAgent):
+    def get_probability_of_actions(self) -> np.ndarray:
+        action_preferences = np.array(
+            [value for value in self.action_preferences.values()]
+        )
+        action_preferences_exp = np.exp(action_preferences - np.max(action_preferences))
+        return action_preferences_exp / np.sum(action_preferences_exp)
