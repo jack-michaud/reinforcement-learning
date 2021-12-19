@@ -47,7 +47,7 @@ class EpsilonGreedySampleAveragesAgent(Agent):
             for action, action_state in self.action_values.items():
                 if action_state["expected_value"] > greedy_action_value:
                     greedy_action_value = action_state["expected_value"]
-                    greedy_actions.append(action)
+                    greedy_actions = [action]
                 if action_state["expected_value"] == greedy_action_value:
                     greedy_actions.append(action)
 
@@ -138,7 +138,7 @@ class EpsilonGreedyConstantStepSize(Agent):
             for action, action_state in self.action_values.items():
                 if action_state["expected_value"] > greedy_action_value:
                     greedy_action_value = action_state["expected_value"]
-                    greedy_actions.append(action)
+                    greedy_actions = [action]
                 if action_state["expected_value"] == greedy_action_value:
                     greedy_actions.append(action)
 
