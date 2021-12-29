@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 import enum
-from typing import Callable
+from typing import Callable, Optional
 
 
 @dataclass
@@ -14,6 +14,8 @@ class Direction(enum.Enum):
     DOWN = (0, +1)
     LEFT = (-1, 0)
     RIGHT = (+1, 0)
+
+actions = [Direction.UP, Direction.DOWN, Direction.LEFT, Direction.RIGHT]
 
 
 class World:
@@ -40,15 +42,24 @@ class World:
             for y in range(y_len)
         ]
 
-    def move(self, direction: Direction) -> float:
+    def move_direction(self, coordinate: Coordinate, direction: Direction) -> Coordinate:
         x_offset, y_offset = direction.value
-        self.current_position.x = min(
-            self.x_len - 1, max(0, self.current_position.x + x_offset)
+        new_x = min(
+            self.x_len - 1, max(0, coordinate.x + x_offset)
         )
-        self.current_position.y = min(
-            self.y_len - 1, max(0, self.current_position.y + y_offset)
+        new_y = min(
+            self.y_len - 1, max(0, coordinate.y + y_offset)
         )
-        return self.cells[self.current_position.x][self.current_position.y]
+        return Coordinate(new_x, new_y)
+
+    def move(self, direction: Direction) -> float:
+        self.current_position = self.move_direction(self.current_position, direction)
+        return self.get_reward(self.current_position)
+
+    def get_reward(self, position: Optional[Coordinate]) -> float:
+        if position is None:
+            position = self.current_position
+        return self.cells[position.x][position.y]
 
     def print(self):
         for row in range(self.y_len):
