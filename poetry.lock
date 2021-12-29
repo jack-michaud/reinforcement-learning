@@ -967,7 +967,7 @@ test = ["websockets"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.9,<3.11"
-content-hash = "516effc79351195ee99fdc50f468a88da9143c87134ba0a22a3805001a265205"
+content-hash = "30b484041cfa23d5f76728cfb5e77de957020ab9a48c56519f8a0ac20262108c"
 
 [metadata.files]
 anyio = [

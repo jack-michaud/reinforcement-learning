@@ -10,6 +10,7 @@ numpy = "^1.21.4"
 jupyterlab = "^3.2.4"
 matplotlib = "^3.5.0"
 asyncio = "^3.4.3"
+ipykernel = "^6.6.0"
 
 [tool.poetry.dev-dependencies]
 
