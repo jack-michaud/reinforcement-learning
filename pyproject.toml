@@ -11,6 +11,7 @@ jupyterlab = "^3.2.4"
 matplotlib = "^3.5.0"
 asyncio = "^3.4.3"
 ipykernel = "^6.6.0"
+pytest = "^6.2.5"
 
 [tool.poetry.dev-dependencies]
 
